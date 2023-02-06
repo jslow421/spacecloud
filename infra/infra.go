@@ -65,8 +65,29 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	})
 
+	// Read people in space function.
+	readPeopleFunction := awslambda.NewFunction(stack, jsii.String("ReadPeople"), &awslambda.FunctionProps{
+		FunctionName: jsii.String(*stack.StackName() + "-ReadPeople"),
+		Runtime:      awslambda.Runtime_GO_1_X(),
+		MemorySize:   jsii.Number(128),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Handler:      jsii.String("read_people_linux"),
+		Architecture: awslambda.Architecture_X86_64(),
+		Role:         s3LambdaRole,
+		LogRetention: awslogs.RetentionDays_ONE_WEEK,
+		CurrentVersionOptions: &awslambda.VersionOptions{
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+		},
+		Environment: &map[string]*string{
+			"DATA_BUCKET": jsii.String(*bucket.BucketName()),
+			"BUCKET_KEY":  jsii.String("people_in_space.json"),
+		},
+	})
+
 	// Add policy to lambda role to access s3 bucket
 	bucket.GrantReadWrite(collectPeopleFunction, nil)
+	bucket.GrantRead(readPeopleFunction, nil)
 
 	// "Daily" event - every 2 hours
 	dailyEventRule := awsevents.NewRule(
@@ -82,27 +103,11 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	)
 
-	// SNS topic
-	//notificationTopic := awssns.NewTopic(
-	//	stack,
-	//	jsii.String("space_cloud_notification_topic"),
-	//	&awssns.TopicProps{
-	//		TopicName:   jsii.String("CloudNotificationTopic"),
-	//		DisplayName: jsii.String("Space Notifications"),
-	//	},
-	//)
-
 	// Add targets to event rule(s)
 	dailyEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectPeopleFunction, nil))
 
-	// Event bus for building data
-	//builderBus := awsevents.NewEventBus(
-	//	stack,
-	//	jsii.String("data_builder_event_bus"),
-	//	&awsevents.EventBusProps{
-	//		EventBusName: jsii.String("DataBuilderEventBus"),
-	//	},
-	//)
+	// Create API Gateway
+
 	return stack
 }
 
