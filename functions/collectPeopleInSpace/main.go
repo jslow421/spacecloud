@@ -1,15 +1,16 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"functions/models"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -61,63 +62,40 @@ func (basics BucketBasics) writeJsonToS3(people []models.Person) error {
 	}
 
 	// write jsonResponse to temp file
-	fileName := "peopleInSpace.json"
-	file, fileCreateErr := os.Create("/tmp/" + fileName)
-	if fileCreateErr != nil {
-		fmt.Println("Failed to create file ", fileCreateErr)
-	}
+	//fileName := "peopleInSpace.json"
+	//file, fileCreateErr := os.Create("/tmp/" + fileName)
+	//if fileCreateErr != nil {
+	//	fmt.Println("Failed to create file ", fileCreateErr)
+	//}
 
 	fmt.Println("JSON value: ", string(jsonResponse))
 
-	w := bufio.NewWriter(file)
-	bytesWritten, writeErr := w.Write(jsonResponse)
-	w.Flush()
-	//bytesWritten, writeErr := file.Write(jsonResponse)
+	//w := bufio.NewWriter(file)
+	//bytesWritten, writeErr := w.Write(jsonResponse)
+	//w.Flush()
 
-	if writeErr != nil {
-		fmt.Println("Failed to write file ")
-		panic(writeErr)
-	}
+	//if writeErr != nil {
+	//	fmt.Println("Failed to write file ")
+	//	panic(writeErr)
+	//}
 
-	fmt.Println("Wrote ", bytesWritten, " bytes to file")
+	//fmt.Println("Wrote ", bytesWritten, " bytes to file")
 
-	defer file.Close()
-	//defer func(file *os.File) {
-	//	err := file.Close()
-	//	if err != nil {
-	//		fmt.Println("Failed to close file ", err)
-	//		panic(err)
-	//	}
-	//	fmt.Println("Closed file")
-	//}(file)
+	reader := strings.NewReader(string(jsonResponse))
 
-	// Instantiate uploader
-	//uploader := manager.NewUploader(client)
+	//defer file.Close()
 
-	// Upload created json file to s3
-	//_, uploadErr := uploader.Upload(context.TODO(), &s3.PutObjectInput{
-	//	Bucket: aws.String(os.Getenv("DATA_BUCKET")),
-	//	Key:    aws.String(os.Getenv("BUCKET_KEY")),
-	//	Body:   file,
-	//})
-
-	_, putErr := basics.S3Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      aws.String(os.Getenv("DATA_BUCKET")),
-		Key:         aws.String(os.Getenv("BUCKET_KEY")),
-		ContentType: aws.String("application/json"),
-		Body:        file,
+	uploader := manager.NewUploader(basics.S3Client)
+	_, uploadErr := uploader.Upload(context.TODO(), &s3.PutObjectInput{
+		Bucket: aws.String(os.Getenv("DATA_BUCKET")),
+		Key:    aws.String(os.Getenv("BUCKET_KEY")),
+		Body:   reader,
 	})
 
-	if putErr != nil {
+	if uploadErr != nil {
 		log.Printf("Couldn't upload file %v to %v:%v. Here's why: %v\n",
 			fileName, os.Getenv("DATA_BUCKET"), os.Getenv("BUCKET_KEY"), jsonMarshalErr)
 	}
-
-	//upParams := &s3manager.UploadInput{
-	//	Bucket: &bucketName,
-	//	Key:    &keyName,
-	//	Body:   file,
-	//}
 
 	return nil
 }
