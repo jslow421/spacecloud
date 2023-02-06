@@ -46,9 +46,6 @@ func getPeopleInSpaceFromApi() (people models.PersonInSpaceApiResponse) {
 }
 
 func (basics BucketBasics) writeJsonToS3(people []models.Person) error {
-	// Set up client
-	//cfg, _ := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-east-1"))
-	//client := s3.NewFromConfig(cfg)
 
 	// Create update model
 	update := models.PersonInSpace{
@@ -61,29 +58,9 @@ func (basics BucketBasics) writeJsonToS3(people []models.Person) error {
 		return jsonMarshalErr
 	}
 
-	// write jsonResponse to temp file
-	//fileName := "peopleInSpace.json"
-	//file, fileCreateErr := os.Create("/tmp/" + fileName)
-	//if fileCreateErr != nil {
-	//	fmt.Println("Failed to create file ", fileCreateErr)
-	//}
-
 	fmt.Println("JSON value: ", string(jsonResponse))
 
-	//w := bufio.NewWriter(file)
-	//bytesWritten, writeErr := w.Write(jsonResponse)
-	//w.Flush()
-
-	//if writeErr != nil {
-	//	fmt.Println("Failed to write file ")
-	//	panic(writeErr)
-	//}
-
-	//fmt.Println("Wrote ", bytesWritten, " bytes to file")
-
 	reader := strings.NewReader(string(jsonResponse))
-
-	//defer file.Close()
 
 	uploader := manager.NewUploader(basics.S3Client)
 	_, uploadErr := uploader.Upload(context.TODO(), &s3.PutObjectInput{
@@ -93,8 +70,7 @@ func (basics BucketBasics) writeJsonToS3(people []models.Person) error {
 	})
 
 	if uploadErr != nil {
-		log.Printf("Couldn't upload file %v to %v:%v. Here's why: %v\n",
-			fileName, os.Getenv("DATA_BUCKET"), os.Getenv("BUCKET_KEY"), jsonMarshalErr)
+		log.Println("Failed to upload file to S3", uploadErr)
 	}
 
 	return nil

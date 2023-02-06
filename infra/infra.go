@@ -74,7 +74,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		jsii.String("data_builder_event"),
 		&awsevents.RuleProps{
 			RuleName: jsii.String("dataBuilderEvent"),
-			Enabled:  jsii.Bool(false),
+			Enabled:  jsii.Bool(true),
 			Schedule: awsevents.Schedule_Cron(&awsevents.CronOptions{
 				Hour:   jsii.String("12"),
 				Minute: jsii.String("0"),
