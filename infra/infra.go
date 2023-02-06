@@ -68,7 +68,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 	// Add policy to lambda role to access s3 bucket
 	bucket.GrantReadWrite(collectPeopleFunction, nil)
 
-	// "Daily" event - every 12 hours
+	// "Daily" event - every 2 hours
 	dailyEventRule := awsevents.NewRule(
 		stack,
 		jsii.String("data_builder_event"),
@@ -76,7 +76,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 			RuleName: jsii.String("dataBuilderEvent"),
 			Enabled:  jsii.Bool(true),
 			Schedule: awsevents.Schedule_Cron(&awsevents.CronOptions{
-				Hour:   jsii.String("0/12"),
+				Hour:   jsii.String("0/2"),
 				Minute: jsii.String("0"),
 			}),
 		},
