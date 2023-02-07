@@ -48,7 +48,7 @@ func getPeopleInSpaceFromApi() (people models.PersonInSpaceApiResponse) {
 func (basics BucketBasics) writeJsonToS3(people []models.Person) error {
 
 	// Create update model
-	update := models.PersonInSpace{
+	update := models.PeopleInSpace{
 		UpdatedTime: time.Now().String(),
 		People:      people,
 	}

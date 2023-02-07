@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsevents"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awseventstargets"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
@@ -65,8 +66,29 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	})
 
+	// Read people in space function.
+	readPeopleFunction := awslambda.NewFunction(stack, jsii.String("ReadPeople"), &awslambda.FunctionProps{
+		FunctionName: jsii.String(*stack.StackName() + "-ReadPeople"),
+		Runtime:      awslambda.Runtime_GO_1_X(),
+		MemorySize:   jsii.Number(128),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Handler:      jsii.String("read_people_linux"),
+		Architecture: awslambda.Architecture_X86_64(),
+		Role:         s3LambdaRole,
+		LogRetention: awslogs.RetentionDays_ONE_WEEK,
+		CurrentVersionOptions: &awslambda.VersionOptions{
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+		},
+		Environment: &map[string]*string{
+			"DATA_BUCKET": jsii.String(*bucket.BucketName()),
+			"BUCKET_KEY":  jsii.String("people_in_space.json"),
+		},
+	})
+
 	// Add policy to lambda role to access s3 bucket
 	bucket.GrantReadWrite(collectPeopleFunction, nil)
+	bucket.GrantRead(readPeopleFunction, nil)
 
 	// "Daily" event - every 2 hours
 	dailyEventRule := awsevents.NewRule(
@@ -82,27 +104,64 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	)
 
-	// SNS topic
-	//notificationTopic := awssns.NewTopic(
-	//	stack,
-	//	jsii.String("space_cloud_notification_topic"),
-	//	&awssns.TopicProps{
-	//		TopicName:   jsii.String("CloudNotificationTopic"),
-	//		DisplayName: jsii.String("Space Notifications"),
-	//	},
-	//)
-
 	// Add targets to event rule(s)
 	dailyEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectPeopleFunction, nil))
 
-	// Event bus for building data
-	//builderBus := awsevents.NewEventBus(
-	//	stack,
-	//	jsii.String("data_builder_event_bus"),
-	//	&awsevents.EventBusProps{
-	//		EventBusName: jsii.String("DataBuilderEventBus"),
-	//	},
-	//)
+	// Create API Gateway
+	restApiProd := awsapigateway.NewRestApi(
+		stack,
+		jsii.String("space_cloud_api"),
+		&awsapigateway.RestApiProps{
+			RestApiName:        jsii.String("Space Cloud API"),
+			RetainDeployments:  jsii.Bool(false),
+			EndpointExportName: jsii.String("SpaceCloudApiEndpoint"),
+			Deploy:             jsii.Bool(true),
+			EndpointConfiguration: &awsapigateway.EndpointConfiguration{
+				Types: &[]awsapigateway.EndpointType{
+					awsapigateway.EndpointType_REGIONAL,
+				},
+			},
+			DeployOptions: &awsapigateway.StageOptions{
+				StageName:            jsii.String("prod"),
+				CacheClusterEnabled:  jsii.Bool(false),
+				ThrottlingBurstLimit: jsii.Number(100),
+				ThrottlingRateLimit:  jsii.Number(1000),
+			},
+		},
+	)
+
+	// Read people endpoint
+	readPeopleResource := restApiProd.Root().AddResource(jsii.String("people"), nil)
+	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil), &awsapigateway.MethodOptions{
+		ApiKeyRequired: jsii.Bool(true),
+	})
+
+	// UsagePlane's throttle can override Stage's DefaultMethodThrottle,
+	// while UsagePlanePerApiStage's throttle can override UsagePlane's throttle.
+	usagePlan := restApiProd.AddUsagePlan(jsii.String("UsagePlan"), &awsapigateway.UsagePlanProps{
+		Name: jsii.String(*stack.StackName() + "-UsagePlan"),
+		Throttle: &awsapigateway.ThrottleSettings{
+			BurstLimit: jsii.Number(10),
+			RateLimit:  jsii.Number(100),
+		},
+		Quota: &awsapigateway.QuotaSettings{
+			Limit:  jsii.Number(10000),
+			Offset: jsii.Number(0),
+			Period: awsapigateway.Period_DAY,
+		},
+		ApiStages: &[]*awsapigateway.UsagePlanPerApiStage{
+			{
+				Api:      restApiProd,
+				Stage:    restApiProd.DeploymentStage(),
+				Throttle: &[]*awsapigateway.ThrottlingPerMethod{},
+			},
+		},
+	})
+
+	// Create ApiKey and associate it with UsagePlane.
+	apiKey := restApiProd.AddApiKey(jsii.String("ApiKey"), &awsapigateway.ApiKeyOptions{})
+	usagePlan.AddApiKey(apiKey, &awsapigateway.AddApiKeyOptions{})
+
 	return stack
 }
 
