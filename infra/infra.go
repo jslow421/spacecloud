@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsevents"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awseventstargets"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
@@ -107,6 +108,59 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 	dailyEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectPeopleFunction, nil))
 
 	// Create API Gateway
+	restApiProd := awsapigateway.NewRestApi(
+		stack,
+		jsii.String("space_cloud_api"),
+		&awsapigateway.RestApiProps{
+			RestApiName:        jsii.String("Space Cloud API"),
+			RetainDeployments:  jsii.Bool(false),
+			EndpointExportName: jsii.String("SpaceCloudApiEndpoint"),
+			Deploy:             jsii.Bool(true),
+			EndpointConfiguration: &awsapigateway.EndpointConfiguration{
+				Types: &[]awsapigateway.EndpointType{
+					awsapigateway.EndpointType_REGIONAL,
+				},
+			},
+			DeployOptions: &awsapigateway.StageOptions{
+				StageName:            jsii.String("prod"),
+				CacheClusterEnabled:  jsii.Bool(false),
+				ThrottlingBurstLimit: jsii.Number(100),
+				ThrottlingRateLimit:  jsii.Number(1000),
+			},
+		},
+	)
+
+	// Read people endpoint
+	readPeopleResource := restApiProd.Root().AddResource(jsii.String("people"), nil)
+	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil), &awsapigateway.MethodOptions{
+		ApiKeyRequired: jsii.Bool(true),
+	})
+
+	// UsagePlane's throttle can override Stage's DefaultMethodThrottle,
+	// while UsagePlanePerApiStage's throttle can override UsagePlane's throttle.
+	usagePlan := restApiProd.AddUsagePlan(jsii.String("UsagePlan"), &awsapigateway.UsagePlanProps{
+		Name: jsii.String(*stack.StackName() + "-UsagePlan"),
+		Throttle: &awsapigateway.ThrottleSettings{
+			BurstLimit: jsii.Number(10),
+			RateLimit:  jsii.Number(100),
+		},
+		Quota: &awsapigateway.QuotaSettings{
+			Limit:  jsii.Number(100),
+			Offset: jsii.Number(0),
+			Period: awsapigateway.Period_DAY,
+		},
+		ApiStages: &[]*awsapigateway.UsagePlanPerApiStage{
+			{
+				Api:      restApiProd,
+				Stage:    restApiProd.DeploymentStage(),
+				Throttle: &[]*awsapigateway.ThrottlingPerMethod{},
+			},
+		},
+	})
+
+	// Create ApiKey and associate it with UsagePlane.
+	apiKey := restApiProd.AddApiKey(jsii.String("ApiKey"), &awsapigateway.ApiKeyOptions{})
+	usagePlan.AddApiKey(apiKey, &awsapigateway.AddApiKeyOptions{})
 
 	return stack
 }
