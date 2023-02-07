@@ -145,7 +145,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 			RateLimit:  jsii.Number(100),
 		},
 		Quota: &awsapigateway.QuotaSettings{
-			Limit:  jsii.Number(100),
+			Limit:  jsii.Number(10000),
 			Offset: jsii.Number(0),
 			Period: awsapigateway.Period_DAY,
 		},

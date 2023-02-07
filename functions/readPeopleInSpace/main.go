@@ -16,11 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type PersonApiResponse struct {
-	Message string          `json:"message"`
-	People  []models.Person `json:"people"`
-}
-
 func getData() (people models.PeopleInSpace) {
 	cfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
 		o.Region = "us-east-1"
@@ -38,8 +33,8 @@ func getData() (people models.PeopleInSpace) {
 	bucketKey := os.Getenv("BUCKET_KEY")
 
 	s3Object, s3err := downloader.S3.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(os.Getenv("DATA_BUCKET")),
-		Key:    aws.String(os.Getenv("BUCKET_KEY")),
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(bucketKey),
 	})
 
 	if s3err != nil {
@@ -73,18 +68,17 @@ func getData() (people models.PeopleInSpace) {
 
 func handleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	peopleInSpace := getData()
-	value := ""
 
 	if len(peopleInSpace.People) <= 0 {
 		panic("No people in space?")
 	}
 
 	readJson, _ := json.Marshal(peopleInSpace)
-	value = string(readJson)
+	responseBody := string(readJson)
 
 	return events.APIGatewayProxyResponse{
 			StatusCode: 200,
-			Body:       value,
+			Body:       responseBody,
 		},
 		nil
 }
