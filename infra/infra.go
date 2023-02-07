@@ -132,9 +132,10 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 
 	// Read people endpoint
 	readPeopleResource := restApiProd.Root().AddResource(jsii.String("people"), nil)
-	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil), &awsapigateway.MethodOptions{
-		ApiKeyRequired: jsii.Bool(true),
-	})
+	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil),
+		&awsapigateway.MethodOptions{
+			ApiKeyRequired: jsii.Bool(true),
+		})
 
 	// UsagePlane's throttle can override Stage's DefaultMethodThrottle,
 	// while UsagePlanePerApiStage's throttle can override UsagePlane's throttle.
