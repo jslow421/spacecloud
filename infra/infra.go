@@ -86,12 +86,36 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	})
 
-	// Add policy to lambda role to access s3 bucket
+	// Retrieve and store launch lambda function.
+	collectLaunchFunction := awslambda.NewFunction(stack, jsii.String("GetLaunches"), &awslambda.FunctionProps{
+		FunctionName: jsii.String(*stack.StackName() + "-GetLaunches"),
+		Runtime:      awslambda.Runtime_GO_1_X(),
+		MemorySize:   jsii.Number(128),
+		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Handler:      jsii.String("collect_rockets_linux"),
+		Architecture: awslambda.Architecture_X86_64(),
+		Role:         s3LambdaRole,
+		LogRetention: awslogs.RetentionDays_ONE_WEEK,
+		CurrentVersionOptions: &awslambda.VersionOptions{
+			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
+		},
+		Environment: &map[string]*string{
+			"DATA_BUCKET": jsii.String(*bucket.BucketName()),
+			"BUCKET_KEY":  jsii.String("launches.json"),
+		},
+	})
+
+	// Add permissions to lambda functions
+	// Read and write
 	bucket.GrantReadWrite(collectPeopleFunction, nil)
+	bucket.GrantReadWrite(collectLaunchFunction, nil)
+
+	// Read only
 	bucket.GrantRead(readPeopleFunction, nil)
 
 	// "Daily" event - every 2 hours
-	dailyEventRule := awsevents.NewRule(
+	everyTwoHoursEventRule := awsevents.NewRule(
 		stack,
 		jsii.String("data_builder_event"),
 		&awsevents.RuleProps{
@@ -104,8 +128,22 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	)
 
+	twiceDailyEventRule := awsevents.NewRule(
+		stack,
+		jsii.String("data_builder_event_twice_daily"),
+		&awsevents.RuleProps{
+			RuleName: jsii.String("dataBuilderEventTwiceDaily"),
+			Enabled:  jsii.Bool(true),
+			Schedule: awsevents.Schedule_Cron(&awsevents.CronOptions{
+				Hour:   jsii.String("0/12"),
+				Minute: jsii.String("0"),
+			}),
+		},
+	)
+
 	// Add targets to event rule(s)
-	dailyEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectPeopleFunction, nil))
+	everyTwoHoursEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectPeopleFunction, nil))
+	twiceDailyEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectLaunchFunction, nil))
 
 	// Create API Gateway
 	restApiProd := awsapigateway.NewRestApi(
@@ -132,9 +170,10 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 
 	// Read people endpoint
 	readPeopleResource := restApiProd.Root().AddResource(jsii.String("people"), nil)
-	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil), &awsapigateway.MethodOptions{
-		ApiKeyRequired: jsii.Bool(true),
-	})
+	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil),
+		&awsapigateway.MethodOptions{
+			ApiKeyRequired: jsii.Bool(true),
+		})
 
 	// UsagePlane's throttle can override Stage's DefaultMethodThrottle,
 	// while UsagePlanePerApiStage's throttle can override UsagePlane's throttle.
