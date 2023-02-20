@@ -129,6 +129,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	)
 
+	// Twice daily event rule
 	twiceDailyEventRule := awsevents.NewRule(
 		stack,
 		jsii.String("data_builder_event_twice_daily"),
@@ -184,6 +185,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 			ApiKeyRequired: jsii.Bool(true),
 		})
 
+	// Set up usage plan for API
 	usagePlan := restApiProd.AddUsagePlan(jsii.String("UsagePlan"), &awsapigateway.UsagePlanProps{
 		Name: jsii.String(*stack.StackName() + "-UsagePlan"),
 		Throttle: &awsapigateway.ThrottleSettings{
@@ -204,7 +206,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	})
 
-	// Create ApiKey and associate it with UsagePlane.
+	// Create ApiKey and associate it with UsagePlan.
 	apiKey := restApiProd.AddApiKey(jsii.String("ApiKey"), &awsapigateway.ApiKeyOptions{})
 	usagePlan.AddApiKey(apiKey, &awsapigateway.AddApiKeyOptions{})
 
