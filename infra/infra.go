@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awscertificatemanager"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsevents"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awseventstargets"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
@@ -165,6 +166,14 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 				ThrottlingBurstLimit: jsii.Number(100),
 				ThrottlingRateLimit:  jsii.Number(1000),
 			},
+			DomainName: &awsapigateway.DomainNameOptions{
+				DomainName: jsii.String("api.spacebits.net"),
+				Certificate: awscertificatemanager.Certificate_FromCertificateArn(
+					stack,
+					jsii.String("space_cloud_api_cert"),
+					jsii.String("arn:aws:acm:us-east-1:939984321277:certificate/32c01289-82c7-4d30-885a-d5cd3aab4a93"),
+				),
+			},
 		},
 	)
 
@@ -175,8 +184,6 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 			ApiKeyRequired: jsii.Bool(true),
 		})
 
-	// UsagePlane's throttle can override Stage's DefaultMethodThrottle,
-	// while UsagePlanePerApiStage's throttle can override UsagePlane's throttle.
 	usagePlan := restApiProd.AddUsagePlan(jsii.String("UsagePlan"), &awsapigateway.UsagePlanProps{
 		Name: jsii.String(*stack.StackName() + "-UsagePlan"),
 		Throttle: &awsapigateway.ThrottleSettings{
@@ -226,15 +233,15 @@ func env() *awscdk.Environment {
 	// Account/Region-dependent features and context lookups will not work, but a
 	// single synthesized template can be deployed anywhere.
 	//---------------------------------------------------------------------------
-	return nil
+	//return nil
 
 	// Uncomment if you know exactly what account and region you want to deploy
 	// the stack to. This is the recommendation for production stacks.
 	//---------------------------------------------------------------------------
-	// return &awscdk.Environment{
-	//  Account: jsii.String("123456789012"),
-	//  Region:  jsii.String("us-east-1"),
-	// }
+	return &awscdk.Environment{
+		Account: jsii.String("939984321277"),
+		Region:  jsii.String("us-east-1"),
+	}
 
 	// Uncomment to specialize this stack for the AWS Account and Region that are
 	// implied by the current CLI configuration. This is recommended for dev
