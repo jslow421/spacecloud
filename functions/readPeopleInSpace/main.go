@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"functions/models"
 	"io"
+	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -38,11 +38,11 @@ func getData() (people models.PeopleInSpace) {
 	})
 
 	if s3err != nil {
-		fmt.Println("Failed to retrieve file from S3", bucketName, bucketKey)
+		log.Println("Failed to retrieve file from S3", bucketName, bucketKey, s3err)
 		panic(s3err)
 	}
 
-	fmt.Println("Successfully retrieved file from S3")
+	log.Println("Successfully retrieved file from S3")
 
 	defer s3Object.Body.Close()
 
@@ -51,7 +51,7 @@ func getData() (people models.PeopleInSpace) {
 	if readErr != nil {
 		panic(readErr)
 	}
-	fmt.Println("Successfully read file from S3")
+	log.Println("Successfully read file from S3")
 
 	fileJson := string(body)
 
@@ -61,7 +61,7 @@ func getData() (people models.PeopleInSpace) {
 		panic(unmarshalErr)
 	}
 
-	fmt.Println("Successfully unmarshalled json from S3")
+	log.Println("Successfully unmarshalled json from S3")
 
 	return people
 }
