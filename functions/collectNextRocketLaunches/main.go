@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"functions/models"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -25,20 +25,20 @@ func getNext5Launches() models.UpcomingRocketLaunchesApiResponse {
 	resp, err := http.Get("https://fdo.rocketlaunch.live/json/launches/next/5")
 
 	if err != nil {
-		fmt.Println("Failed to get next 5 launches")
+		log.Println("Failed to get next 5 launches")
 	}
 
 	body, bodyReadErr := io.ReadAll(resp.Body)
 
 	if bodyReadErr != nil {
-		fmt.Println("Failed to read response body", bodyReadErr)
+		log.Println("Failed to read response body", bodyReadErr)
 	}
 
 	var rockets = models.UpcomingRocketLaunchesApiResponse{}
 	unmarshalErr := json.Unmarshal(body, &rockets)
 
 	if unmarshalErr != nil {
-		fmt.Println("Failed to unmarshal json", unmarshalErr)
+		log.Println("Failed to unmarshal json", unmarshalErr)
 	}
 
 	return rockets
@@ -57,7 +57,7 @@ func storeNextLaunchesInS3(rockets models.UpcomingRocketLaunchesApiResponse) {
 	rocketJson, jsonMarshalErr := json.Marshal(rockets)
 
 	if jsonMarshalErr != nil {
-		fmt.Println("Failed to marshal json", jsonMarshalErr)
+		log.Println("Failed to marshal json", jsonMarshalErr)
 	}
 
 	reader := strings.NewReader(string(rocketJson))
@@ -70,7 +70,7 @@ func storeNextLaunchesInS3(rockets models.UpcomingRocketLaunchesApiResponse) {
 	})
 
 	if uploadErr != nil {
-		fmt.Println("Failed to upload file to S3", uploadErr)
+		log.Println("Failed to upload file to S3", uploadErr)
 	}
 
 }
@@ -78,7 +78,7 @@ func storeNextLaunchesInS3(rockets models.UpcomingRocketLaunchesApiResponse) {
 func handler() {
 	rockets := getNext5Launches()
 	storeNextLaunchesInS3(rockets)
-	fmt.Println(rockets)
+	log.Println(rockets)
 }
 func main() {
 	runtime.Start(handler)
