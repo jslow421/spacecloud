@@ -87,6 +87,10 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 		},
 	})
 
+	// Read people in space rust function
+	readPeopleRustFunction := awslambda.Function_FromFunctionArn(stack, jsii.String("ReadPeopleRust"),
+		jsii.String("arn:aws:lambda:us-east-1:939984321277:function:read-people-in-space-rust"))
+
 	// Retrieve and store launch lambda function.
 	collectLaunchFunction := awslambda.NewFunction(stack, jsii.String("GetLaunches"), &awslambda.FunctionProps{
 		FunctionName: jsii.String(*stack.StackName() + "-GetLaunches"),
@@ -175,12 +179,25 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 					jsii.String("arn:aws:acm:us-east-1:939984321277:certificate/32c01289-82c7-4d30-885a-d5cd3aab4a93"),
 				),
 			},
+			DefaultCorsPreflightOptions: &awsapigateway.CorsOptions{
+				AllowOrigins: awsapigateway.Cors_ALL_ORIGINS(),
+				AllowMethods: awsapigateway.Cors_ALL_METHODS(),
+				AllowHeaders: awsapigateway.Cors_DEFAULT_HEADERS(),
+			},
 		},
 	)
 
 	// Read people endpoint
 	readPeopleResource := restApiProd.Root().AddResource(jsii.String("people"), nil)
-	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction, nil),
+	readPeopleResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleFunction,
+		&awsapigateway.LambdaIntegrationOptions{}),
+		&awsapigateway.MethodOptions{
+			ApiKeyRequired: jsii.Bool(true),
+		})
+
+	readPeopleRustResource := restApiProd.Root().AddResource(jsii.String("peoplerust"), nil)
+	readPeopleRustResource.AddMethod(jsii.String("GET"), awsapigateway.NewLambdaIntegration(readPeopleRustFunction,
+		&awsapigateway.LambdaIntegrationOptions{}),
 		&awsapigateway.MethodOptions{
 			ApiKeyRequired: jsii.Bool(true),
 		})

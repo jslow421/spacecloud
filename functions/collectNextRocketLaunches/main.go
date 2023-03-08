@@ -72,7 +72,6 @@ func storeNextLaunchesInS3(rockets models.UpcomingRocketLaunchesApiResponse) {
 	if uploadErr != nil {
 		log.Println("Failed to upload file to S3", uploadErr)
 	}
-
 }
 
 func handler() {
