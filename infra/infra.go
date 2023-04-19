@@ -45,26 +45,6 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 			},
 		})
 
-	// Get people in space function.
-	collectPeopleFunction := awslambda.NewFunction(stack, jsii.String("GetPeople"), &awslambda.FunctionProps{
-		FunctionName: jsii.String(*stack.StackName() + "-GetPeople"),
-		Runtime:      awslambda.Runtime_GO_1_X(),
-		MemorySize:   jsii.Number(128),
-		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
-		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
-		Handler:      jsii.String("collectPeopleInSpace"),
-		Architecture: awslambda.Architecture_X86_64(),
-		Role:         s3LambdaRole,
-		LogRetention: awslogs.RetentionDays_ONE_WEEK,
-		CurrentVersionOptions: &awslambda.VersionOptions{
-			RemovalPolicy: awscdk.RemovalPolicy_DESTROY,
-		},
-		Environment: &map[string]*string{
-			"DATA_BUCKET": jsii.String(*bucket.BucketName()),
-			"BUCKET_KEY":  jsii.String("people_in_space.json"),
-		},
-	})
-
 	// Retrieve and store launch lambda function.
 	collectLaunchFunction := awslambda.NewFunction(stack, jsii.String("GetLaunches"), &awslambda.FunctionProps{
 		FunctionName: jsii.String(*stack.StackName() + "-GetLaunches"),
@@ -87,22 +67,7 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 
 	// Add permissions to lambda functions
 	// Read and write
-	bucket.GrantReadWrite(collectPeopleFunction, nil)
 	bucket.GrantReadWrite(collectLaunchFunction, nil)
-
-	// "Daily" event - every 2 hours
-	everyTwoHoursEventRule := awsevents.NewRule(
-		stack,
-		jsii.String("data_builder_event"),
-		&awsevents.RuleProps{
-			RuleName: jsii.String("dataBuilderEvent"),
-			Enabled:  jsii.Bool(true),
-			Schedule: awsevents.Schedule_Cron(&awsevents.CronOptions{
-				Hour:   jsii.String("0/2"),
-				Minute: jsii.String("0"),
-			}),
-		},
-	)
 
 	// Twice daily event rule
 	twiceDailyEventRule := awsevents.NewRule(
@@ -119,7 +84,6 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 	)
 
 	// Add targets to event rule(s)
-	everyTwoHoursEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectPeopleFunction, nil))
 	twiceDailyEventRule.AddTarget(awseventstargets.NewLambdaFunction(collectLaunchFunction, nil))
 
 	return stack
