@@ -48,12 +48,12 @@ func SpaceCloudInfraStack(scope constructs.Construct, id string, props *InfraSta
 	// Retrieve and store launch lambda function.
 	collectLaunchFunction := awslambda.NewFunction(stack, jsii.String("GetLaunches"), &awslambda.FunctionProps{
 		FunctionName: jsii.String(*stack.StackName() + "-GetLaunches"),
-		Runtime:      awslambda.Runtime_GO_1_X(),
+		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
 		MemorySize:   jsii.Number(128),
 		Timeout:      awscdk.Duration_Seconds(jsii.Number(60)),
-		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/."), nil),
+		Code:         awslambda.AssetCode_FromAsset(jsii.String("../out/collect_launches"), nil),
 		Handler:      jsii.String("collectNextRocketLaunches"),
-		Architecture: awslambda.Architecture_X86_64(),
+		Architecture: awslambda.Architecture_ARM_64(),
 		Role:         s3LambdaRole,
 		LogRetention: awslogs.RetentionDays_ONE_WEEK,
 		CurrentVersionOptions: &awslambda.VersionOptions{
